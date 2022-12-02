@@ -1,0 +1,2 @@
+Test set: Ternary accuracy: 55% Binary accuracy: 85% | Unary accuracy: 98%
+Test set: Ternary accuracy: 56% Binary accuracy: 75% | Unary accuracy: 70%
