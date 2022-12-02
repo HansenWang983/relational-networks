@@ -41,21 +41,21 @@ class FCOutputModel(nn.Module):
     def __init__(self):
         super(FCOutputModel, self).__init__()
 
-        # self.fc2 = nn.Linear(256, 256)
-        # self.fc3 = nn.Linear(256, 10)
+        self.fc2 = nn.Linear(128, 128)
+        self.fc3 = nn.Linear(128, 10)
         
-        self.fc2 = nn.Linear(1000, 500)
-        self.fc3 = nn.Linear(500, 100)
-        self.fc4 = nn.Linear(100, 10)
+        # self.fc2 = nn.Linear(128, 64)
+        # self.fc3 = nn.Linear(64, 32)
+        # self.fc4 = nn.Linear(32, 10)
 
     def forward(self, x):
         x = self.fc2(x)
         x = F.relu(x)
         x = F.dropout(x)
         x = self.fc3(x)
-        x = F.relu(x)
-        x = F.dropout(x)
-        x = self.fc4(x)
+        # x = F.relu(x)
+        # x = F.dropout(x)
+        # x = self.fc4(x)
         return F.log_softmax(x, dim=1)
 
 class BasicModel(nn.Module):
@@ -66,7 +66,7 @@ class BasicModel(nn.Module):
     def train_(self, input_img, input_qst, label):
         self.optimizer.zero_grad()
         output = self(input_img, input_qst)
-        loss = F.nll_loss(output, label)
+        loss = F.cross_entropy(output, label)
         loss.backward()
         self.optimizer.step()
         pred = output.data.max(1)[1]
@@ -76,7 +76,7 @@ class BasicModel(nn.Module):
         
     def test_(self, input_img, input_qst, label):
         output = self(input_img, input_qst)
-        loss = F.nll_loss(output, label)
+        loss = F.cross_entropy(output, label)
         pred = output.data.max(1)[1]
         correct = pred.eq(label.data).cpu().sum()
         accuracy = correct * 100. / len(label)
@@ -96,16 +96,16 @@ class RN(BasicModel):
         
         if self.relation_type == 'ternary':
             ##(number of filters per object+coordinate of object)*3+question vector
-            self.g_fc1 = nn.Linear((256+2)*3+18, 2000)
+            self.g_fc1 = nn.Linear((256+2)*3+18, 128)
         else:
             ##(number of filters per object+coordinate of object)*2+question vector
-            self.g_fc1 = nn.Linear((256+2)*2+18, 2000)
+            self.g_fc1 = nn.Linear((256+2)*2+11, 128)
 
-        self.g_fc2 = nn.Linear(2000, 2000)
-        self.g_fc3 = nn.Linear(2000, 2000)
-        self.g_fc4 = nn.Linear(2000, 2000)
+        self.g_fc2 = nn.Linear(128, 128)
+        self.g_fc3 = nn.Linear(128, 128)
+        self.g_fc4 = nn.Linear(128, 128)
 
-        self.f_fc1 = nn.Linear(2000, 1000)
+        self.f_fc1 = nn.Linear(128, 128)
 
         self.coord_oi = torch.FloatTensor(args.batch_size, 2)
         self.coord_oj = torch.FloatTensor(args.batch_size, 2)
@@ -184,14 +184,14 @@ class RN(BasicModel):
             x_i = torch.unsqueeze(x_flat, 1)  # (64x1x25x258)
             x_i = x_i.repeat(1, 25, 1, 1)  # (64x25x25x258)
             x_j = torch.unsqueeze(x_flat, 2)  # (64x25x1x258)
-            x_j = torch.cat([x_j, qst], 3) # (64x25x1x258+18)
-            x_j = x_j.repeat(1, 1, 25, 1)  # (64x25x25x258+18)
+            x_j = torch.cat([x_j, qst], 3) # (64x25x1x258+11)
+            x_j = x_j.repeat(1, 1, 25, 1)  # (64x25x25x258+11)
             
             # concatenate all together
-            x_full = torch.cat([x_i,x_j],3) # (64x25x25x2*258+18)
+            x_full = torch.cat([x_i,x_j],3) # (64x25x25x2*258+11)
         
             # reshape for passing through network
-            x_ = x_full.view(mb * (d * d) * (d * d), 534)  # (64*25*25x2*258*18) = (40.000, 534)
+            x_ = x_full.view(mb * (d * d) * (d * d), 527)  # (64*25*25x2*258+11) = (40.000, 534)
             
         x_ = self.g_fc1(x_)
         x_ = F.relu(x_)
@@ -204,9 +204,9 @@ class RN(BasicModel):
         
         # reshape again and sum
         if self.relation_type == 'ternary':
-            x_g = x_.view(mb, (d * d) * (d * d) * (d * d), 2000)
+            x_g = x_.view(mb, (d * d) * (d * d) * (d * d), 128)
         else:
-            x_g = x_.view(mb, (d * d) * (d * d), 2000)
+            x_g = x_.view(mb, (d * d) * (d * d), 128)
 
         x_g = x_g.sum(1).squeeze()
         
