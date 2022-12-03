@@ -56,34 +56,40 @@ else:
 model_dirs = './model'
 bs = args.batch_size
 input_img = torch.FloatTensor(bs, 3, 75, 75)
+input_state = torch.FloatTensor(bs, 7)
 input_qst = torch.FloatTensor(bs, 11)
 label = torch.LongTensor(bs)
 
 if args.cuda:
     model.cuda()
     input_img = input_img.cuda()
+    input_state = input_state.cuda()
     input_qst = input_qst.cuda()
     label = label.cuda()
 
 input_img = Variable(input_img)
 input_qst = Variable(input_qst)
+input_state = Variable(input_state)
 label = Variable(label)
 
 def tensor_data(data, i):
     img = torch.from_numpy(np.asarray(data[0][bs*i:bs*(i+1)]))
-    qst = torch.from_numpy(np.asarray(data[1][bs*i:bs*(i+1)]))
-    ans = torch.from_numpy(np.asarray(data[2][bs*i:bs*(i+1)]))
+    state = torch.from_numpy(np.asarray(data[1][bs*i:bs*(i+1)]))
+    qst = torch.from_numpy(np.asarray(data[2][bs*i:bs*(i+1)]))
+    ans = torch.from_numpy(np.asarray(data[3][bs*i:bs*(i+1)]))
 
     input_img.data.resize_(img.size()).copy_(img)
+    input_state.data.resize_(state.size()).copy_(state)
     input_qst.data.resize_(qst.size()).copy_(qst)
     label.data.resize_(ans.size()).copy_(ans)
 
 
 def cvt_data_axis(data):
     img = [e[0] for e in data]
-    qst = [e[1] for e in data]
-    ans = [e[2] for e in data]
-    return (img,qst,ans)
+    state = [e[1] for e in data]
+    qst = [e[2] for e in data]
+    ans = [e[3] for e in data]
+    return (img,state,qst,ans)
 
     
 def train(epoch, rel, norel):
@@ -116,12 +122,12 @@ def train(epoch, rel, norel):
         # l_ternary.append(loss_ternary.item())
 
         tensor_data(rel, batch_idx)
-        accuracy_rel, loss_binary = model.train_(input_img, input_qst, label)
+        accuracy_rel, loss_binary = model.train_(input_img, input_state, input_qst, label)
         acc_rels.append(accuracy_rel.item())
         l_binary.append(loss_binary.item())
 
         tensor_data(norel, batch_idx)
-        accuracy_norel, loss_unary = model.train_(input_img, input_qst, label)
+        accuracy_norel, loss_unary = model.train_(input_img, input_state, input_qst, label)
         acc_norels.append(accuracy_norel.item())
         l_unary.append(loss_unary.item())
 
@@ -184,12 +190,12 @@ def test(epoch, rel, norel):
         # loss_ternary.append(l_ter.item())
 
         tensor_data(rel, batch_idx)
-        acc_bin, l_bin = model.test_(input_img, input_qst, label)
+        acc_bin, l_bin = model.test_(input_img, input_state, input_qst, label)
         accuracy_rels.append(acc_bin.item())
         loss_binary.append(l_bin.item())
 
         tensor_data(norel, batch_idx)
-        acc_un, l_un = model.test_(input_img, input_qst, label)
+        acc_un, l_un = model.test_(input_img, input_state, input_qst, label)
         accuracy_norels.append(acc_un.item())
         loss_unary.append(l_un.item())
 
@@ -237,18 +243,18 @@ def load_data():
         # for qst, ans in zip(ternary[0], ternary[1]):
         #     ternary_train.append((img,qst,ans))
         for qst,ans in zip(relations[0], relations[1]):
-            rel_train.append((img,qst,ans))
+            rel_train.append((img,state,qst,ans))
         for qst,ans in zip(norelations[0], norelations[1]):
-            norel_train.append((img,qst,ans))
+            norel_train.append((img,state,qst,ans))
 
     for img, state, relations, norelations in test_datasets:
         img = np.swapaxes(img, 0, 2)
         # for qst, ans in zip(ternary[0], ternary[1]):
         #     ternary_test.append((img, qst, ans))
         for qst,ans in zip(relations[0], relations[1]):
-            rel_test.append((img,qst,ans))
+            rel_test.append((img,state,qst,ans))
         for qst,ans in zip(norelations[0], norelations[1]):
-            norel_test.append((img,qst,ans))
+            norel_test.append((img,state,qst,ans))
     
     return (rel_train, rel_test, norel_train, norel_test)
     

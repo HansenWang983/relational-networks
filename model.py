@@ -63,7 +63,7 @@ class BasicModel(nn.Module):
         super(BasicModel, self).__init__()
         self.name=name
 
-    def train_(self, input_img, input_qst, label):
+    def train_(self, input_img, input_state, input_qst, label):
         self.optimizer.zero_grad()
         output = self(input_img, input_qst)
         loss = F.cross_entropy(output, label)

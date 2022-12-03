@@ -1,1 +1,3 @@
 data/sort-of-clevr.pickle
+__pycache__/*
+runs/*
