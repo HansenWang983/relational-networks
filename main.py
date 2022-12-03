@@ -232,7 +232,7 @@ def load_data():
     norel_test = []
     print('processing data...')
 
-    for img, relations, norelations in train_datasets:
+    for img, state, relations, norelations in train_datasets:
         img = np.swapaxes(img, 0, 2)
         # for qst, ans in zip(ternary[0], ternary[1]):
         #     ternary_train.append((img,qst,ans))
@@ -241,7 +241,7 @@ def load_data():
         for qst,ans in zip(norelations[0], norelations[1]):
             norel_train.append((img,qst,ans))
 
-    for img, relations, norelations in test_datasets:
+    for img, state, relations, norelations in test_datasets:
         img = np.swapaxes(img, 0, 2)
         # for qst, ans in zip(ternary[0], ternary[1]):
         #     ternary_test.append((img, qst, ans))

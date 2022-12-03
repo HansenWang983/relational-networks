@@ -55,23 +55,47 @@ def center_generate(objects):
         if pas:
             return center
 
-
+state_column_size = 7
+state_color_idx = 2
+state_shape_idx = 5
 
 def build_dataset():
     objects = []
+    # from pixels
     img = np.ones((img_size,img_size,3)) * 255
+    # state description matrix: each row describes an object in the image
+    # there are 7 columns (2 coordinate, 3 color, 2 shape)in each row: x,y,r,g,b,square,circle
+    # Each image has a total of 6 objects
+    state_mat = []
+    
+    # each color has one object 
     for color_id,color in enumerate(colors):  
+        
+        state = np.zeros((state_column_size))
+        
+        # coordinate
         center = center_generate(objects)
+        state[0] = center[0]
+        state[1] = center[1]
+        
+        # color
+        state[state_color_idx:state_color_idx+3] = list(color)
+
+        # square
         if random.random()<0.5:
             start = (center[0]-size, center[1]-size)
             end = (center[0]+size, center[1]+size)
             cv2.rectangle(img, start, end, color, -1)
+            state[state_shape_idx]=1
             objects.append((color_id,center,'r'))
+        # circle
         else:
             center_ = (center[0], center[1])
             cv2.circle(img, center_, size, color, -1)
+            state[state_shape_idx+1]=1
             objects.append((color_id,center,'c'))
-
+        
+        state_mat.append(state)
 
     # ternary_questions = []
     binary_questions = []
@@ -258,7 +282,7 @@ def build_dataset():
     norelations = (norel_questions, norel_answers)
     
     img = img/255.
-    dataset = (img, binary_relations, norelations)
+    dataset = (img, state, binary_relations, norelations)
     return dataset
 
 
