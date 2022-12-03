@@ -282,7 +282,7 @@ def build_dataset():
     norelations = (norel_questions, norel_answers)
     
     img = img/255.
-    dataset = (img, state, binary_relations, norelations)
+    dataset = (img, state_mat, binary_relations, norelations)
     return dataset
 
 
