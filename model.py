@@ -41,9 +41,9 @@ class FCOutputModel(nn.Module):
     def __init__(self):
         super(FCOutputModel, self).__init__()
 
-        self.fc2 = nn.Linear(1000, 500)
-        self.fc3 = nn.Linear(500, 250)
-        self.fc4 = nn.Linear(250, 10)
+        self.fc2 = nn.Linear(500, 256)
+        self.fc3 = nn.Linear(256, 256)
+        self.fc4 = nn.Linear(256, 10)
 
         # self.fc2 = nn.Linear(128, 64)
         # self.fc3 = nn.Linear(64, 32)
@@ -52,10 +52,8 @@ class FCOutputModel(nn.Module):
     def forward(self, x):
         x = self.fc2(x)
         x = F.relu(x)
-        x = F.dropout(x)
         x = self.fc3(x)
         x = F.relu(x)
-        x = F.dropout(x)
         x = self.fc4(x)
         return F.log_softmax(x, dim=1)
 
@@ -95,15 +93,19 @@ class RN(BasicModel):
         
         self.relation_type = args.relation_type
         self.state_desc = args.state_desc
-        
+
         ##(number of filters per object+coordinate of object)*2+question vector
-        self.g_fc1 = nn.Linear((256+2)*2+11, 256)
+        if self.state_desc != 0:
+            self.g_fc1 = nn.Linear(6*2+11, 500)
+        else:
+            self.g_fc1 = nn.Linear(258*2+11, 1000)
 
-        self.g_fc2 = nn.Linear(256, 256)
-        self.g_fc3 = nn.Linear(256, 256)
-        self.g_fc4 = nn.Linear(256, 256)
 
-        self.f_fc1 = nn.Linear(256, 1000)
+        self.g_fc2 = nn.Linear(1000, 1000)
+        self.g_fc3 = nn.Linear(1000, 1000)
+        self.g_fc4 = nn.Linear(1000, 1000)
+
+        self.f_fc1 = nn.Linear(1000, 500)
 
         self.coord_oi = torch.FloatTensor(args.batch_size, 2)
         self.coord_oj = torch.FloatTensor(args.batch_size, 2)
@@ -135,19 +137,21 @@ class RN(BasicModel):
     def forward(self, img, state, qst):
         
         if self.state_desc != 0:
-            # x_flat = (64 x 6 x 7)
+            # x_flat = (64 x 6 x 10)
             x_flat = state
             mb = x_flat.size()[0]
             n_channels = x_flat.size()[1]
             d = x_flat.size()[2]
+            x_flat = x_flat.permute(0,2,1)
         else:
             x = self.conv(img) ## x = (64 x 256 x 5 x 5)
             """g"""
             mb = x.size()[0]
             n_channels = x.size()[1]
             d = x.size()[2]
+            d *= d
             # x_flat = (64 x 25 x 256)
-            x_flat = x.view(mb,n_channels,d*d).permute(0,2,1)
+            x_flat = x.view(mb,n_channels,d).permute(0,2,1)
             # add coordinates (64 x 25 x 258)
             x_flat = torch.cat([x_flat, self.coord_tensor],2)
             n_channels += 2
@@ -166,9 +170,8 @@ class RN(BasicModel):
         
         # concatenate all together
         x_full = torch.cat([x_i,x_j],3) # (64xdxdx2*n_channels+11)
-    
         # reshape for passing through network
-        x_ = x_full.view(mb * (d * d) * (d * d), 2*n_channels+11)  # (64*d*dx2*n_channels+11) = (40.000, 534)
+        x_ = x_full.view(mb * (d * d), 2*n_channels+11)  # (64*d*dx2*n_channels+11)
         
         x_ = self.g_fc1(x_)
         x_ = F.relu(x_)
@@ -180,14 +183,13 @@ class RN(BasicModel):
         x_ = F.relu(x_)
         
         # reshape again and sum
-        x_g = x_.view(mb, (d * d) * (d * d), 256)
+        x_g = x_.view(mb, (d * d), 1000)
 
         x_g = x_g.sum(1).squeeze()
         
         """f"""
         x_f = self.f_fc1(x_g)
         x_f = F.relu(x_f)
-        x_f = F.dropout(x_f)
         
         return self.fcout(x_f)
 
