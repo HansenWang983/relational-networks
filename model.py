@@ -41,9 +41,10 @@ class FCOutputModel(nn.Module):
     def __init__(self):
         super(FCOutputModel, self).__init__()
 
-        self.fc2 = nn.Linear(500, 250)
-        self.fc3 = nn.Linear(250, 10)
-        
+        self.fc2 = nn.Linear(1000, 500)
+        self.fc3 = nn.Linear(500, 250)
+        self.fc4 = nn.Linear(250, 10)
+
         # self.fc2 = nn.Linear(128, 64)
         # self.fc3 = nn.Linear(64, 32)
         # self.fc4 = nn.Linear(32, 10)
@@ -53,9 +54,9 @@ class FCOutputModel(nn.Module):
         x = F.relu(x)
         x = F.dropout(x)
         x = self.fc3(x)
-        # x = F.relu(x)
-        # x = F.dropout(x)
-        # x = self.fc4(x)
+        x = F.relu(x)
+        x = F.dropout(x)
+        x = self.fc4(x)
         return F.log_softmax(x, dim=1)
 
 class BasicModel(nn.Module):
@@ -74,7 +75,7 @@ class BasicModel(nn.Module):
         accuracy = correct * 100. / len(label)
         return accuracy, loss
         
-    def test_(self, input_img, input_qst, label):
+    def test_(self, input_img, input_state, input_qst, label):
         output = self(input_img, input_state, input_qst)
         loss = F.cross_entropy(output, label)
         pred = output.data.max(1)[1]
@@ -93,19 +94,16 @@ class RN(BasicModel):
         self.conv = ConvInputModel()
         
         self.relation_type = args.relation_type
+        self.state_desc = args.state_desc
         
-        if self.relation_type == 'ternary':
-            ##(number of filters per object+coordinate of object)*3+question vector
-            self.g_fc1 = nn.Linear((256+2)*3+18, 256)
-        else:
-            ##(number of filters per object+coordinate of object)*2+question vector
-            self.g_fc1 = nn.Linear((256+2)*2+11, 256)
+        ##(number of filters per object+coordinate of object)*2+question vector
+        self.g_fc1 = nn.Linear((256+2)*2+11, 256)
 
         self.g_fc2 = nn.Linear(256, 256)
         self.g_fc3 = nn.Linear(256, 256)
         self.g_fc4 = nn.Linear(256, 256)
 
-        self.f_fc1 = nn.Linear(1000, 500)
+        self.f_fc1 = nn.Linear(256, 1000)
 
         self.coord_oi = torch.FloatTensor(args.batch_size, 2)
         self.coord_oj = torch.FloatTensor(args.batch_size, 2)
@@ -135,39 +133,42 @@ class RN(BasicModel):
 
 
     def forward(self, img, state, qst):
-        x = self.conv(img) ## x = (64 x 256 x 5 x 5)
         
-        """g"""
-        mb = x.size()[0]
-        n_channels = x.size()[1]
-        d = x.size()[2]
-        # x_flat = (64 x 25 x 256)
-        x_flat = x.view(mb,n_channels,d*d).permute(0,2,1)
+        if self.state_desc != 0:
+            # x_flat = (64 x 6 x 7)
+            x_flat = state
+            mb = x_flat.size()[0]
+            n_channels = x_flat.size()[1]
+            d = x_flat.size()[2]
+        else:
+            x = self.conv(img) ## x = (64 x 256 x 5 x 5)
+            """g"""
+            mb = x.size()[0]
+            n_channels = x.size()[1]
+            d = x.size()[2]
+            # x_flat = (64 x 25 x 256)
+            x_flat = x.view(mb,n_channels,d*d).permute(0,2,1)
+            # add coordinates (64 x 25 x 258)
+            x_flat = torch.cat([x_flat, self.coord_tensor],2)
+            n_channels += 2
         
-        # add coordinates (64 x 25 x 258)
-        x_flat = torch.cat([x_flat, self.coord_tensor],2)
-        
-        # state 64x6x7
-        # qst 64x1x18
-        # repeat 64x6x18
-
         # add question everywhere
         qst = torch.unsqueeze(qst, 1) # (64x1x18)
-        qst = qst.repeat(1, 25, 1) # (64x25x18)
-        qst = torch.unsqueeze(qst, 2) # (64x25x1x18)
+        qst = qst.repeat(1, d, 1) # (64xdx18)
+        qst = torch.unsqueeze(qst, 2) # (64xdx1x18)
 
         # cast all pairs against each other
-        x_i = torch.unsqueeze(x_flat, 1)  # (64x1x25x258)
-        x_i = x_i.repeat(1, 25, 1, 1)  # (64x25x25x258)
-        x_j = torch.unsqueeze(x_flat, 2)  # (64x25x1x258)
-        x_j = torch.cat([x_j, qst], 3) # (64x25x1x258+11)
-        x_j = x_j.repeat(1, 1, 25, 1)  # (64x25x25x258+11)
+        x_i = torch.unsqueeze(x_flat, 1)  # (64x1xdxn_channels)
+        x_i = x_i.repeat(1, d, 1, 1)  # (64xdxdxn_channels)
+        x_j = torch.unsqueeze(x_flat, 2)  # (64xdx1xn_channels)
+        x_j = torch.cat([x_j, qst], 3) # (64xdx1xn_channels+11)
+        x_j = x_j.repeat(1, 1, d, 1)  # (64xdxdxn_channels+11)
         
         # concatenate all together
-        x_full = torch.cat([x_i,x_j],3) # (64x25x25x2*258+11)
+        x_full = torch.cat([x_i,x_j],3) # (64xdxdx2*n_channels+11)
     
         # reshape for passing through network
-        x_ = x_full.view(mb * (d * d) * (d * d), 527)  # (64*25*25x2*258+11) = (40.000, 534)
+        x_ = x_full.view(mb * (d * d) * (d * d), 2*n_channels+11)  # (64*d*dx2*n_channels+11) = (40.000, 534)
         
         x_ = self.g_fc1(x_)
         x_ = F.relu(x_)
@@ -179,10 +180,7 @@ class RN(BasicModel):
         x_ = F.relu(x_)
         
         # reshape again and sum
-        if self.relation_type == 'ternary':
-            x_g = x_.view(mb, (d * d) * (d * d) * (d * d), 256)
-        else:
-            x_g = x_.view(mb, (d * d) * (d * d), 256)
+        x_g = x_.view(mb, (d * d) * (d * d), 256)
 
         x_g = x_g.sum(1).squeeze()
         

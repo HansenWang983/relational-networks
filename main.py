@@ -38,7 +38,9 @@ parser.add_argument('--resume', type=str,
                     help='resume from model stored')
 parser.add_argument('--relation-type', type=str, default='binary',
                     help='what kind of relations to learn. options: binary, ternary (default: binary)')
-
+parser.add_argument('--state_desc', type=int, default=0,
+                    help='what kind of input to learn. options: pixels or state descriptions')
+                
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 
