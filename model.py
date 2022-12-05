@@ -41,9 +41,9 @@ class FCOutputModel(nn.Module):
     def __init__(self):
         super(FCOutputModel, self).__init__()
 
-        self.fc2 = nn.Linear(500, 256)
-        self.fc3 = nn.Linear(256, 256)
-        self.fc4 = nn.Linear(256, 10)
+        self.fc2 = nn.Linear(512, 1024)
+        self.fc3 = nn.Linear(1024, 10)
+        # self.fc4 = nn.Linear(250, 10)
 
         # self.fc2 = nn.Linear(128, 64)
         # self.fc3 = nn.Linear(64, 32)
@@ -51,10 +51,11 @@ class FCOutputModel(nn.Module):
 
     def forward(self, x):
         x = self.fc2(x)
+        x = F.dropout(x, 0.05)
         x = F.relu(x)
         x = self.fc3(x)
-        x = F.relu(x)
-        x = self.fc4(x)
+        # x = F.relu(x)
+        # x = self.fc4(x)
         return F.log_softmax(x, dim=1)
 
 class BasicModel(nn.Module):
@@ -96,16 +97,16 @@ class RN(BasicModel):
 
         ##(number of filters per object+coordinate of object)*2+question vector
         if self.state_desc != 0:
-            self.g_fc1 = nn.Linear(6*2+11, 1000)
+            self.g_fc1 = nn.Linear(6*2+11, 512)
         else:
-            self.g_fc1 = nn.Linear(258*2+11, 1000)
+            self.g_fc1 = nn.Linear(258*2+11, 512)
 
 
-        self.g_fc2 = nn.Linear(1000, 1000)
-        self.g_fc3 = nn.Linear(1000, 1000)
-        self.g_fc4 = nn.Linear(1000, 1000)
+        self.g_fc2 = nn.Linear(512, 512)
+        self.g_fc3 = nn.Linear(512, 512)
+        self.g_fc4 = nn.Linear(512, 512)
 
-        self.f_fc1 = nn.Linear(1000, 500)
+        self.f_fc1 = nn.Linear(512, 512)
 
         self.coord_oi = torch.FloatTensor(args.batch_size, 2)
         self.coord_oj = torch.FloatTensor(args.batch_size, 2)
@@ -137,7 +138,7 @@ class RN(BasicModel):
     def forward(self, img, state, qst):
         
         if self.state_desc != 0:
-            # x = (64 x 6 x 7)
+            # x = (64 x 6 x 11)
             x = state
             mb = x.size()[0]
             n_channels = x.size()[1]
@@ -161,16 +162,18 @@ class RN(BasicModel):
         qst = torch.unsqueeze(qst, 1) # (64x1x18)
         qst = qst.repeat(1, d, 1) # (64xdx18)
         qst = torch.unsqueeze(qst, 2) # (64xdx1x18)
+        qst = qst.repeat(1,1,d,1) # (64xdxdx18)
 
         # cast all pairs against each other
         x_i = torch.unsqueeze(x_flat, 1)  # (64x1xdxn_channels)
         x_i = x_i.repeat(1, d, 1, 1)  # (64xdxdxn_channels)
         x_j = torch.unsqueeze(x_flat, 2)  # (64xdx1xn_channels)
-        x_j = torch.cat([x_j, qst], 3) # (64xdx1xn_channels+11)
-        x_j = x_j.repeat(1, 1, d, 1)  # (64xdxdxn_channels+11)
+        # x_j = torch.cat([x_j, qst], 3) # (64xdx1xn_channels+11)
+        x_j = x_j.repeat(1, 1, d, 1)  # (64xdxdxn_channels)
         
         # concatenate all together
-        x_full = torch.cat([x_i,x_j],3) # (64xdxdx2*n_channels+11)
+        x_full = torch.cat([x_i,x_j],3) # (64xdxdx2*n_channels)
+        x_full = torch.cat([x_full, qst], 3) # (64xdxdx2*n_channels+11)
         # reshape for passing through network
         x_ = x_full.view(mb * (d * d), 2*n_channels+11)  # (64*d*dx2*n_channels+11)
         
@@ -184,7 +187,7 @@ class RN(BasicModel):
         x_ = F.relu(x_)
         
         # reshape again and sum
-        x_g = x_.view(mb, (d * d), 1000)
+        x_g = x_.view(mb, (d * d), 512)
 
         x_g = x_g.sum(1).squeeze()
         
