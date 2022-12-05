@@ -55,16 +55,16 @@ def center_generate(objects):
         if pas:
             return center
 
-state_column_size = 10
+state_column_size = 7
 state_color_idx = 2
-state_shape_idx = 8
+state_shape_idx = 5
 
 def build_dataset():
     objects = []
     # from pixels
     img = np.ones((img_size,img_size,3)) * 255
     # state description matrix: each row describes an object in the image
-    # there are 10 columns (2 coordinate, 6 color, 2 shape)in each row: x,y,r,g,b,o,k,ysquare,circle
+    # there are 7 columns (2 coordinate, 3 color, 2 shape)in each row: x,y,r,g,b,square,circle
     # Each image has a total of 6 objects
     state_mat = []
     
@@ -79,7 +79,7 @@ def build_dataset():
         state[1] = center[1]
         
         # color
-        state[state_color_idx+color_id] = 1
+        state[state_color_idx:state_color_idx+3] = list(color)
 
         # square
         if random.random()<0.5:

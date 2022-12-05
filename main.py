@@ -58,7 +58,7 @@ else:
 model_dirs = './model'
 bs = args.batch_size
 input_img = torch.FloatTensor(bs, 3, 75, 75)
-input_state = torch.FloatTensor(bs, 6, 10)
+input_state = torch.FloatTensor(bs, 6, 7)
 input_qst = torch.FloatTensor(bs, 11)
 label = torch.LongTensor(bs)
 
