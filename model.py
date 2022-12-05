@@ -96,7 +96,7 @@ class RN(BasicModel):
 
         ##(number of filters per object+coordinate of object)*2+question vector
         if self.state_desc != 0:
-            self.g_fc1 = nn.Linear(6*2+11, 500)
+            self.g_fc1 = nn.Linear(6*2+11, 1000)
         else:
             self.g_fc1 = nn.Linear(258*2+11, 1000)
 
@@ -142,6 +142,7 @@ class RN(BasicModel):
             mb = x_flat.size()[0]
             n_channels = x_flat.size()[1]
             d = x_flat.size()[2]
+            # x_flat = (64 x 10 x 6)    
             x_flat = x_flat.permute(0,2,1)
         else:
             x = self.conv(img) ## x = (64 x 256 x 5 x 5)
