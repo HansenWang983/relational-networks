@@ -138,7 +138,7 @@ class RN(BasicModel):
     def forward(self, img, state, qst):
         
         if self.state_desc != 0:
-            # x = (64 x 6 x 11)
+            # x = (64 x 6 x 7)
             x = state
             mb = x.size()[0]
             n_channels = x.size()[1]

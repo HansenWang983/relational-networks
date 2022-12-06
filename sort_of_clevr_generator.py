@@ -55,9 +55,9 @@ def center_generate(objects):
         if pas:
             return center
 
-state_column_size = 11
-state_color_idx = 3
-state_shape_idx = 9
+state_column_size = 7
+state_color_idx = 2
+state_shape_idx = 5
 
 def build_dataset():
     objects = []
@@ -73,16 +73,13 @@ def build_dataset():
         
         state = np.zeros((state_column_size))
         
-        # object id
-        state[0] = color_id+1
-
         # coordinate
         center = center_generate(objects)
-        state[1] = center[0]
-        state[2] = center[1]
+        state[0] = center[0]
+        state[1] = center[1]
         
         # color
-        state[state_color_idx+color_id] = 1
+        state[state_color_idx:state_color_idx+3] = list(color)
 
         # square
         if random.random()<0.5:
