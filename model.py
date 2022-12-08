@@ -97,7 +97,7 @@ class RN(BasicModel):
 
         ##(number of filters per object+coordinate of object)*2+question vector
         if self.state_desc != 0:
-            self.g_fc1 = nn.Linear(6*2+11, 512)
+            self.g_fc1 = nn.Linear(7*2+11, 512)
         else:
             self.g_fc1 = nn.Linear(258*2+11, 512)
 
@@ -137,32 +137,30 @@ class RN(BasicModel):
 
     def forward(self, img, state, qst):
         
+        # state matrix input
         if self.state_desc != 0:
             # x = (64 x 6 x 7)
             x = state
-            mb = x.size()[0]
-            n_channels = x.size()[1]
-            d = x.size()[2]
-            x_flat = x.view(mb,n_channels,d).permute(0,2,1)
-            
+            mb = x.size()[0] # batch size
+            d = x.size()[1] # object numbers
+            n_channels = x.size()[2] # attributes numbers
+            x_flat = x.view(mb,n_channels,d).permute(0,2,1) 
         else:
             x = self.conv(img) ## x = (64 x 256 x 5 x 5)
             """g"""
-            mb = x.size()[0]
-            n_channels = x.size()[1]
-            d = x.size()[2]
+            mb = x.size()[0] # batch size
+            n_channels = x.size()[1] # number of filters per object
+            d = x.size()[2] # feature map size of dxd
             d *= d
-            # x_flat = (64 x 25 x 256)
-            x_flat = x.view(mb,n_channels,d).permute(0,2,1)
-            # add coordinates (64 x 25 x 258)
-            x_flat = torch.cat([x_flat, self.coord_tensor],2)
+            x_flat = x.view(mb,n_channels,d).permute(0,2,1) # x_flat = (64 x 25 x 256)
+            x_flat = torch.cat([x_flat, self.coord_tensor],2) # add coordinates (64 x 25 x 258)
             n_channels += 2
         
         # add question everywhere
-        qst = torch.unsqueeze(qst, 1) # (64x1x18)
-        qst = qst.repeat(1, d, 1) # (64xdx18)
-        qst = torch.unsqueeze(qst, 2) # (64xdx1x18)
-        qst = qst.repeat(1,1,d,1) # (64xdxdx18)
+        qst = torch.unsqueeze(qst, 1) # (64x1x11)
+        qst = qst.repeat(1, d, 1) # (64xdx11)
+        qst = torch.unsqueeze(qst, 2) # (64xdx1x11)
+        qst = qst.repeat(1,1,d,1) # (64xdxdx11)
 
         # cast all pairs against each other
         x_i = torch.unsqueeze(x_flat, 1)  # (64x1xdxn_channels)
